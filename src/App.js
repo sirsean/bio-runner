@@ -218,7 +218,7 @@ function NarrativeForm() {
         return (
             <div className="NarrativeForm">
                 <form onSubmit={submit}>
-                    <textarea name="narrative" defaultValue={narrative}></textarea>
+                    <textarea name="narrative" defaultValue={narrative || ''}></textarea>
                     <button>Save</button>
                 </form>
             </div>
@@ -269,9 +269,11 @@ function Header() {
     const cost = useSelector(selectCost);
     return (
         <header>
-            bio-runner
-            <p>{address}</p>
-        {cost && <p>{ethers.utils.formatUnits(cost, 18)} DATA</p>}
+            <div className="left">bio-runner</div>
+            <div className="center">{address}</div>
+            <div className="right">
+                {cost && <span>{ethers.utils.formatUnits(cost, 18)} DATA</span>}
+            </div>
         </header>
     );
 }

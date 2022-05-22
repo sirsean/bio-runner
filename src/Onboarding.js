@@ -76,6 +76,7 @@ export class OnboardingButton extends React.Component {
             if (this.state.accounts.length > 0) {
                 // If the user is connected to MetaMask, stop the onboarding process.
                 this.state.onboarding.stopOnboarding()
+                this.props.onConnected();
             }
         }
 
