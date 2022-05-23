@@ -96,13 +96,13 @@ export class OnboardingButton extends React.Component {
             // Ask the user to connect to MetaMask.
             return (
                 <div>
-                <div>To run this dApp you need to connect your MetaMask Wallet.</div>
-                <button onClick={this.connectMetaMask}>
-                Connect your Wallet
-                </button>
+                    <div>To run this dApp you need to connect your MetaMask Wallet.</div>
+                    <button onClick={this.connectMetaMask}>
+                    Connect your Wallet
+                    </button>
                 </div>
             )
-        } else if (!isPolygonChain(this.state.chainId)) {
+        } else if (this.state.chainId && !isPolygonChain(this.state.chainId)) {
             // If the selected chain id is not the Polygon chain id, ask the user to switch
             // to Polygon.
             return (
@@ -116,15 +116,6 @@ export class OnboardingButton extends React.Component {
                     </button>
                 </div>
             )
-        } else {
-            // The user is connected to the MetaMask wallet and has the Polygon chain selected.
-            return (
-                <div>
-                    <div>MetaMask Wallet connected!</div>
-                    <div>Chain: {this.state.chainId}</div>
-                    <div>Account: {this.state.accounts[0]}</div>
-                </div>
-            );
         }
     }
 }

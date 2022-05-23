@@ -134,7 +134,7 @@ function SearchBar() {
     return (
         <div className="SearchBar">
             <form onSubmit={search}>
-                <input type="text" name="runnerId" />
+                <input type="text" name="runnerId" tabIndex="1" />
                 <button>Search</button>
             </form>
         </div>
@@ -218,7 +218,7 @@ function NarrativeForm() {
         return (
             <div className="NarrativeForm">
                 <form onSubmit={submit}>
-                    <textarea name="narrative" defaultValue={narrative || ''}></textarea>
+                    <textarea name="narrative" rows="4" tabIndex="2" defaultValue={narrative || ''}></textarea>
                     <button>Save</button>
                 </form>
             </div>
@@ -278,21 +278,12 @@ function Header() {
     );
 }
 
-function Footer() {
-    return (
-        <footer>
-            by sirsean
-        </footer>
-    );
-}
-
 function App() {
     return (
         <Provider store={store}>
             <div className="App">
                 <Header />
                 <Main />
-                <Footer />
             </div>
         </Provider>
     );

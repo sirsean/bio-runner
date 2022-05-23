@@ -21,6 +21,58 @@ header .right {
     text-align: right;
 }
 
+button {
+    font-family: 'VT323', monospace;
+    font-size: 1.3em;
+    padding: 0.3em;
+    background-color: black;
+    color: #FF6700;
+    border: 1px solid #FF6700;
+    border-radius: 6px;
+}
+
+.SearchBar {
+    margin: 0.6em;
+    text-align: center;
+}
+
+.SearchBar input {
+    font-family: 'VT323', monospace;
+    font-size: 1.3em;
+    padding: 0.3em;
+    outline: none;
+    border-radius: 6px;
+}
+
+.SearchBar button {
+    margin-left: 4px;
+}
+
+.RunnerSig {
+    text-align: center;
+}
+
+.CurrentNarrative {
+    display: block;
+    width: 100%;
+    padding: 0.3em;
+    margin: 0.2em;
+    font-size: 1.5em;
+    background-color: #2C2E3B;
+    border-radius: 5px;
+}
+
+.NarrativeForm textarea {
+    width: 100%;
+    margin: 12px;
+    outline: none;
+}
+
+.PendingTransaction {
+    text-align: center;
+}
+
 .TransactionFailed {
     word-break: break-all;
+    text-align: center;
 }
