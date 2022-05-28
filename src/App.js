@@ -5,6 +5,8 @@ import { ethers } from 'ethers';
 import RunnerNarrativeABI from './RunnerNarrative.js';
 import ERC20 from './ERC20.js';
 import { OnboardingButton } from './Onboarding.js';
+import { marked } from 'marked';
+import sanitizeHtml from 'sanitize-html';
 import './App.css';
 
 const RUNNER_NARRATIVE_ADDRESS = '0x40632f44E5CF7F7A229F4b0c018282fad8534ede';
@@ -159,10 +161,9 @@ function RunnerSig() {
 function CurrentNarrative() {
     const narrative = useSelector(selectCurrentNarrative);
     if (narrative) {
+        const sanitized = { __html: sanitizeHtml(marked.parse(narrative)) };
         return (
-            <div className="CurrentNarrative">
-                {narrative}
-            </div>
+            <div className="CurrentNarrative" dangerouslySetInnerHTML={sanitized} />
         );
     }
 }
