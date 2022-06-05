@@ -18,8 +18,8 @@ const slice = createSlice({
         address: null,
         narrativeContract: null,
         runnerId: null,
-        runnerSig: null,
-        currentNarrative: null,
+        runner: null,
+        isSaving: false,
     },
     reducers: {
         connected: (state, action) => {
@@ -37,15 +37,18 @@ const slice = createSlice({
         },
         setRunnerId: (state, action) => {
             state.runnerId = action.payload.runnerId;
+            if (state.runnerId !== state.runner?.id) {
+                state.runner = null;
+            }
         },
-        setRunnerSig: (state, action) => {
-            state.runnerSig = action.payload.runnerSig;
-        },
-        setCurrentNarrative: (state, action) => {
-            state.currentNarrative = action.payload.narrative;
+        setRunner: (state, action) => {
+            state.runner = action.payload.runner;
         },
         setPendingNarrative: (state, action) => {
             state.pendingNarrative = action.payload.narrative;
+        },
+        saving: (state, action) => {
+            state.isSaving = action.payload;
         },
         transactionStarted: (state, action) => {
             state.tx = {
@@ -54,7 +57,7 @@ const slice = createSlice({
         },
         transactionConfirmed: (state, action) => {
             state.tx = null;
-            state.currentNarrative = state.pendingNarrative;
+            state.runner.narrative = state.pendingNarrative;
             state.pendingNarrative = null;
         },
         transactionFailed: (state, action) => {
@@ -68,43 +71,55 @@ const slice = createSlice({
 
 const {
     connected, connectFinished,
-    setRunnerId, setRunnerSig, setCost,
-    setCurrentNarrative, setPendingNarrative,
+    setRunnerId, setRunner, setCost,
+    setPendingNarrative,
+    saving,
     transactionStarted, transactionConfirmed, transactionFailed,
 } = slice.actions;
 const store = configureStore({
     reducer: slice.reducer,
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware({
+            serializableCheck: {
+                ignoredActionPaths: [
+                    'payload.narrativeContract',
+                    'payload.dataContract',
+                    'payload.cost',
+                ],
+                ignoredPaths: [
+                    'narrativeContract',
+                    'dataContract',
+                    'cost',
+                ],
+            },
+        }),
 });
 
 const selectNarrativeContract = state => state.narrativeContract;
 const selectDataContract = state => state.dataContract;
 const selectCost = state => state.cost;
 const selectRunnerId = state => state.runnerId;
+const selectRunner = state => state.runner;
 const selectAddress = state => state.address;
-const selectRunnerSig = state => state.runnerSig;
-const selectIsOwner = state => (state.address === state.runnerSig?.owner);
-const selectCurrentNarrative = state => state.currentNarrative;
+const selectIsOwner = state => (state.address === state.runner?.owner);
 const selectIsPendingTransaction = state => (state.tx && !state.tx.error);
 const selectPendingTxHash = state => state.tx?.hash;
 const selectTxError = state => state.tx?.error;
+const selectIsSaving = state => state.isSaving;
 
 store.subscribe(() => {
-    const { narrativeContract, onConnect, runnerId, runnerSig } = store.getState();
+    const { narrativeContract, onConnect, runnerId, runner } = store.getState();
     if (onConnect) {
         store.dispatch(connectFinished());
         narrativeContract.cost().then(cost => store.dispatch(setCost({ cost })));
     }
-    if (runnerId && (runnerId !== runnerSig?.tokenId)) {
-        fetch(`https://2112signer.sirsean.workers.dev/runner/${runnerId}`)
+    if (runnerId && (runnerId !== runner?.id)) {
+        fetch(`https://2112-api.sirsean.workers.dev/runner/${runnerId}`)
             .then(r => r.json())
-            .then(runnerSig => {
-                store.dispatch(setRunnerSig({ runnerSig }));
+            .then(runner => {
+                console.log(runner);
+                store.dispatch(setRunner({ runner }));
             });
-        if (narrativeContract) {
-            narrativeContract.narrative(runnerId).then(narrative => {
-                store.dispatch(setCurrentNarrative({ narrative }));
-            });
-        }
     }
 });
 
@@ -143,47 +158,85 @@ function SearchBar() {
     );
 }
 
-function RunnerSig() {
-    const runnerSig = useSelector(selectRunnerSig);
-    const isOwner = useSelector(selectIsOwner);
-    if (runnerSig) {
+function runnerTitle(runner) {
+    const talent = runner.attributes.Talent;
+    const faction = runner.attributes.Faction.replace(/The /, '').replace(/s$/, '');
+    return `T${talent} ${faction}`;
+}
+
+function AttrRow(props) {
+    return (
+        <div className="AttrRow">
+            <span className="name">{props.name}::</span>
+            <span className="value">{props.value}</span>
+        </div>
+    );
+}
+
+function SanitizedNarrative(props) {
+    if (props.narrative) {
+        const sanitized = { __html: sanitizeHtml(marked.parse(props.narrative)) };
         return (
-            <div className="RunnerSig">
-            {isOwner &&
-                <p>you own this runner!</p>}
-            {!isOwner &&
-                    <p>you do not own this runner</p>}
-            </div>
+            <div className="SanitizedNarrative" dangerouslySetInnerHTML={sanitized} />
         );
     }
 }
 
-function CurrentNarrative() {
-    const narrative = useSelector(selectCurrentNarrative);
-    if (narrative) {
-        const sanitized = { __html: sanitizeHtml(marked.parse(narrative)) };
+function Runner() {
+    const runner = useSelector(selectRunner);
+    if (runner) {
+        const title = runnerTitle(runner);
+        const attrs = Object.assign({}, runner.attributes);
+        const notoriety = attrs['Notoriety Points'];
+        ['Faction', 'Talent', 'Notoriety Points'].forEach(k => delete attrs[k]);
         return (
-            <div className="CurrentNarrative" dangerouslySetInnerHTML={sanitized} />
+            <div className="Runner">
+                <h2>{title}</h2>
+                <div className="row">
+                    <div className="owner">
+                        OWNER:: {runner.owner}
+                    </div>
+                </div>
+                <div className="row">
+                    <div className="left">
+                        <div className="imgWrapper">
+                            <img className="runner" src={runner.image} alt={runner.name} />
+                        </div>
+                    </div>
+                    <div className="right">
+                        <AttrRow name="Notoriety Points" value={notoriety} />
+                        {Object.keys(attrs).map(k => <AttrRow key={k} name={k} value={attrs[k]} />)}
+                    </div>
+                </div>
+                {runner.narrative &&
+                    <div className="row">
+                        <SanitizedNarrative narrative={runner.narrative} />
+                    </div>}
+                <NarrativeForm />
+                <PendingTransaction />
+                <TransactionFailed />
+            </div>
         );
     }
 }
 
 function NarrativeForm() {
     const isOwner = useSelector(selectIsOwner);
-    const isPendingTransaction = useSelector(selectIsPendingTransaction);
     const runnerId = useSelector(selectRunnerId);
-    const runnerSig = useSelector(selectRunnerSig);
-    const narrative = useSelector(selectCurrentNarrative);
+    const runner = useSelector(selectRunner);
+    const narrative = runner?.narrative;
     const narrativeContract = useSelector(selectNarrativeContract);
     const dataContract = useSelector(selectDataContract);
     const cost = useSelector(selectCost);
+    const isSaving = useSelector(selectIsSaving);
     const submit = async (e) => {
         e.preventDefault();
-        const { timestamp, signature } = runnerSig;
+        const { timestamp, signature } = await fetch(`https://2112signer.sirsean.workers.dev/runner/${runnerId}`).then(r => r.json());
         const story = e.target.narrative.value;
         if (story === narrative) {
             return;
         }
+        store.dispatch(saving(true));
         if (cost.gt(ethers.constants.Zero)) {
             await dataContract.approve(narrativeContract.address, cost)
                 .then(tx => {
@@ -210,18 +263,31 @@ function NarrativeForm() {
                     store.dispatch(transactionFailed({ error: 'Transaction Failed' }));
                 } else {
                     store.dispatch(transactionConfirmed());
+                    store.dispatch(saving(false));
                 }
             }).catch(e => {
                 store.dispatch(transactionFailed({ error: e.message }));
+                store.dispatch(saving(false));
             });
     };
-    if (isOwner && !isPendingTransaction) {
+    if (isOwner && !isSaving) {
+        const polygonScanLink = `https://polygonscan.com/address/${RUNNER_NARRATIVE_ADDRESS}`;
         return (
             <div className="NarrativeForm">
                 <form onSubmit={submit}>
-                    <textarea name="narrative" rows="4" tabIndex="2" defaultValue={narrative || ''}></textarea>
+                    <textarea name="narrative" rows="8" tabIndex="2" defaultValue={narrative || ''}></textarea>
                     <button>Save</button>
                 </form>
+            <p>This will store your runner's narrative to the blockchain, where it will safely stay until you overwrite it.</p>
+            <p>You should know that this is Markdown.</p>
+            {cost && cost.gt(ethers.constants.Zero) &&
+                <div>
+                    <p>Before we can send that transaction, you must first approve the contract to take some DATA from your wallet.</p>
+                    <p>Then we will submit a second transaction that includes your runner's new narrative.</p>
+                </div>}
+            {cost && !cost.gt(ethers.constants.Zero) &&
+                    <p>We will submit a transaction that includes your runner's new narrative.</p>}
+                <p><a href={polygonScanLink} target="_blank" rel="noreferrer">Inspect the contract on Polygonscan.</a></p>
             </div>
         );
     }
@@ -234,7 +300,7 @@ function PendingTransaction() {
         const href = `https://polygonscan.com/tx/${txHash}`;
         return (
             <div className="PendingTransaction">
-                waiting for <a target="_blank" href={href}>transaction</a>
+                waiting for <a target="_blank" rel="noreferrer" href={href}>transaction</a>
             </div>
         );
     }
@@ -255,12 +321,14 @@ function Main() {
     return (
         <div className="Main">
             <OnboardingButton onConnected={onConnected} />
-            <SearchBar />
-            <RunnerSig />
-            <CurrentNarrative />
-            <NarrativeForm />
-            <PendingTransaction />
-            <TransactionFailed />
+            <div className="row">
+                <div className="col">
+                    <SearchBar />
+                </div>
+                <div className="col">
+                    <Runner />
+                </div>
+            </div>
         </div>
     );
 }
@@ -270,10 +338,10 @@ function Header() {
     const cost = useSelector(selectCost);
     return (
         <header>
-            <div className="left">bio-runner</div>
-            <div className="center">{address}</div>
+            <div className="left"><h1>bio-runner</h1></div>
             <div className="right">
-                {cost && <span>{ethers.utils.formatUnits(cost, 18)} DATA</span>}
+                <span>{address}</span>
+                {cost && <span>Cost to set bio: {ethers.utils.formatUnits(cost, 18)} DATA</span>}
             </div>
         </header>
     );
